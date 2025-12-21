@@ -22,7 +22,7 @@ BORDER_COLOR = (93, 216, 228)
 BALL_COLOR = (182, 216, 3)
 
 # Цвет ракетки
-RACKET_COLOR = (0, 255, 0)
+RACKET_COLOR = (0, 0, 255)
 
 # Частота обновления цикла программы:
 FPS = 60
@@ -66,8 +66,8 @@ class Ball(GameObject):
         """Инициализируем обект 'мячик'."""
         super().__init__()
         self.position = (randint(0, SCREEN_WIDTH), radius)
-        self.color = BALL_COLOR
         self.radius = radius
+        self.color = BALL_COLOR
         self.speed = speed
         # Добавляем отдельные рандомные направления для X и Y
         self.dx = 1 if randint(0, 1) == 0 else -1
@@ -141,6 +141,22 @@ class Racket(GameObject):
                     self.positions[i][1]
                     )
 
+    def kick(self, ball):
+        """Метод отскока мячика от ракетки."""
+        # Создадим кортеж с координатами X ракетки.
+        racket_coords_x = (x for x in range(self.positions[0][0],
+                           self.positions[-1][0] + SIDE))
+        # Отскок от ракетки.
+        if (ball.y + ball.radius >= SCREEN_HEIGHT - SIDE and
+                ball.x in racket_coords_x):
+            ball.y = SCREEN_HEIGHT - SIDE - ball.radius
+            ball.dy = -1
+        # Столкновение с нижней горизонтальной границей.
+        elif (ball.y + ball.radius >= SCREEN_HEIGHT and
+                ball.x not in racket_coords_x):
+            self.reset_racket()
+            ball.position = (randint(0, SCREEN_WIDTH), ball.radius)
+
     def draw(self):
         """Метод draw класса Snake."""
         for position in self.positions:
@@ -205,6 +221,8 @@ def main():
         racket.move()
         # Проверяем столкновения с границами.
         ball.check_border()
+        # Проверяем столкновения мяча с ракеткой.
+        racket.kick(ball)
         # Рисуем мяч.
         ball.draw()
         # Рисуем ракетку.
