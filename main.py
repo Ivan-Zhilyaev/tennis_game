@@ -126,16 +126,15 @@ class Racket(GameObject):
     def move(self):
         """Метод обновляет позицию ракетки."""
         # Если нажали кнопку влево.
-        if self.direction == LEFT:
-            # self.direction = None
+        if self.direction == LEFT and self.positions[0][0] > 0:
             for i in range(len(self.positions)):
                 self.positions[i] = (
                     self.positions[i][0] - SPEED_RACKET,
                     self.positions[i][1]
                     )
         # Иначе если нажали кнопку вправо.
-        elif self.direction == RIGHT:
-            # self.direction = None
+        elif (self.direction == RIGHT and
+              self.positions[0][0] < SCREEN_WIDTH - SIDE * LENGTH):
             for i in range(len(self.positions)):
                 self.positions[i] = (
                     self.positions[i][0] + SPEED_RACKET,
