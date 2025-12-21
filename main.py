@@ -5,16 +5,12 @@ from random import randint
 
 # Константы для размеров поля и сетки:
 SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
-GRID_SIZE = 20
-GRID_WIDTH = SCREEN_WIDTH // GRID_SIZE
-GRID_HEIGHT = SCREEN_HEIGHT // GRID_SIZE
+
 SCREEN_CENTER_X, SCREEN_CENTER_Y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
 
-# Направления движения:
-UP = (0, -1)
-DOWN = (0, 1)
-LEFT = (-1, 0)
-RIGHT = (1, 0)
+# Направления движения ракетки:
+LEFT = -1
+RIGHT = 1
 
 # Цвет фона - черный:
 BOARD_BACKGROUND_COLOR = (24, 24, 24)
@@ -25,17 +21,26 @@ BORDER_COLOR = (93, 216, 228)
 # Цвет мячика
 BALL_COLOR = (182, 216, 3)
 
-# Цвет змейки
-SNAKE_COLOR = (0, 255, 0)
+# Цвет ракетки
+RACKET_COLOR = (0, 255, 0)
 
 # Частота обновления цикла программы:
 FPS = 60
+
+# Скорость передвижения ракетки.
+SPEED_RACKET = 5
+
+# Размер секции ракетки.
+SIDE = 20
+
+# Количество секций ракетки.
+LENGTH = 6
 
 # Настройка игрового окна:
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 
 # Заголовок окна игрового поля:
-pygame.display.set_caption('Змейка')
+pygame.display.set_caption('Теннис')
 
 # Настройка времени:
 clock = pygame.time.Clock()
@@ -111,30 +116,44 @@ class Ball(GameObject):
 class Racket(GameObject):
     """Наследуемый класс Racket."""
 
-    def __init__(self, surface, color, x, y, side):
+    def __init__(self):
         """Инициализируем обект 'ракетка'."""
-        super().__init__(surface, color)
-        self.x = x
-        self.y = y
-        self.side = side
+        super().__init__()
+        self.body_color = RACKET_COLOR
+        self.reset_racket()
+        self.direction = None
+
+    def move(self):
+        """Метод обновляет позицию ракетки."""
+        # Если нажали кнопку влево.
+        if self.direction == LEFT:
+            # self.direction = None
+            for i in range(len(self.positions)):
+                self.positions[i] = (
+                    self.positions[i][0] - SPEED_RACKET,
+                    self.positions[i][1]
+                    )
+        # Иначе если нажали кнопку вправо.
+        elif self.direction == RIGHT:
+            # self.direction = None
+            for i in range(len(self.positions)):
+                self.positions[i] = (
+                    self.positions[i][0] + SPEED_RACKET,
+                    self.positions[i][1]
+                    )
 
     def draw(self):
-        """Отрисовка обекта 'ракетка'."""
-        pygame.draw.rect(self.surface, self.color,
-                         pygame.Rect(self.x, self.y, self.side, self.side))
+        """Метод draw класса Snake."""
+        for position in self.positions:
+            rect = (pygame.Rect(position, (SIDE, SIDE)))
+            pygame.draw.rect(screen, self.body_color, rect)
+            pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
 
-
-class Triangle(GameObject):
-    """PASS."""
-
-    def __init__(self, surface, color, points):
-        """PASS."""
-        super().__init__(surface, color)
-        self.points = points
-
-    def draw(self):
-        """PASS."""
-        pygame.draw.polygon(self.surface, self.color, self.points)
+    def reset_racket(self):
+        """Метод установливает ракетку в начальное положение."""
+        self.positions = [(x + SCREEN_CENTER_X - SIDE * LENGTH // 2,
+                           SCREEN_HEIGHT - SIDE)
+                          for x in range(0, LENGTH * SIDE, SIDE)]
 
 
 def handle_keys(object):
@@ -151,10 +170,17 @@ def handle_keys(object):
         if event.type == pygame.KEYDOWN:
             # обработка нажатия клавиши СТРЕЛКА_ВЛЕВО
             if event.key == pygame.K_LEFT:
-                object.direction = -1
+                object.direction = LEFT
             # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
             if event.key == pygame.K_RIGHT:
-                object.direction = 1
+                object.direction = RIGHT
+        if event.type == pygame.KEYUP:
+            # обработка отпускания клавиши СТРЕЛКА_ВЛЕВО
+            if event.key == pygame.K_LEFT:
+                object.direction = None
+            # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
+            if event.key == pygame.K_RIGHT:
+                object.direction = None
 
 
 def main():
@@ -163,6 +189,7 @@ def main():
     pygame.init()
     # Тут нужно создать экземпляры классов.
     ball = Ball()
+    racket = Racket()
     # square = Square(screen, (0, 255, 0), 450, 200, 100)
     # triangle = Triangle(screen, (0, 0, 255), [(150, 200), (50, 300),
     # (250, 300)])
@@ -170,15 +197,19 @@ def main():
     running = True
     while running:
         # Проверяем нажатие кнопок.
-        handle_keys(ball)
+        handle_keys(racket)
         # Делаем фон черным.
         screen.fill((0, 0, 0))
-        # Обновляем позицию.
+        # Обновляем позицию мячика.
         ball.move()
+        # Обновляем позицию ракетки.
+        racket.move()
         # Проверяем столкновения с границами.
         ball.check_border()
-        # Рисуем.
+        # Рисуем мяч.
         ball.draw()
+        # Рисуем ракетку.
+        racket.draw()
         pygame.display.update()
         clock.tick(FPS)
 
