@@ -1,4 +1,4 @@
-"""Импортировать библиотеку Pygame."""
+"""Игра 'Теннис' в Pygame."""
 import pygame
 
 from random import randint
@@ -200,14 +200,19 @@ def handle_keys(object):
 
 def main():
     """Основная функция main."""
+    # Динамический импорт класса Text.
+    from gameparts import Text
     # Инициализация PyGame:
     pygame.init()
     # Тут нужно создать экземпляры классов.
     ball = Ball()
     racket = Racket()
-    # square = Square(screen, (0, 255, 0), 450, 200, 100)
-    # triangle = Triangle(screen, (0, 0, 255), [(150, 200), (50, 300),
-    # (250, 300)])
+    # Тут нужно создать экземпляры текста.
+    text = Text('Hello, world', pygame.font.SysFont('Arial', 30),
+                (255, 255, 255), 10, 10)
+    # Тут нужно создать экземпляры текста.
+    text_2 = Text('Hello, world', pygame.font.SysFont('Arial', 30),
+                  (255, 255, 255), 10, 10)
 
     running = True
     while running:
@@ -227,6 +232,9 @@ def main():
         ball.draw()
         # Рисуем ракетку.
         racket.draw()
+        # Рисуем текст.
+        text.draw(screen)
+        text_2.draw(screen)
         pygame.display.update()
         clock.tick(FPS)
 
