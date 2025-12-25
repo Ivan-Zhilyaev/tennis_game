@@ -161,7 +161,6 @@ class Racket(GameObject):
                 ball.x not in racket_coords_x):
             self.reset_racket()
             ball.position = (randint(0, SCREEN_WIDTH), ball.radius)
-            print('мяч упал')
             self.ball_drop = True
 
     def draw(self):
