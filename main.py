@@ -1,49 +1,51 @@
-"""Игра 'Теннис' в Pygame."""
-import pygame
+"""Игра 'Теннис' в pg."""
+import pygame as pg
 
 from random import randint
 
 # Константы для размеров поля и сетки:
 SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
-
-SCREEN_CENTER_X, SCREEN_CENTER_Y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+SCREEN_CENTER = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+SCREEN_CENTER_X, SCREEN_CENTER_Y = SCREEN_CENTER
 
 # Направления движения ракетки:
 LEFT = -1
 RIGHT = 1
 
+BLUE = (0, 0, 228)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GREY = (50, 50, 50, 180)
+YELLOW = (255, 255, 0)
+
 # Цвет фона - черный:
 BOARD_BACKGROUND_COLOR = (24, 24, 24)
-
 # Цвет границы ячейки
 BORDER_COLOR = (93, 216, 228)
-
 # Цвет мячика
 BALL_COLOR = (182, 216, 3)
-
 # Цвет ракетки
 RACKET_COLOR = (0, 0, 255)
 
 # Частота обновления цикла программы:
 FPS = 60
-
 # Скорость передвижения ракетки.
 SPEED_RACKET = 5
-
+SPEED_BALL = 2
 # Размер секции ракетки.
 SIDE = 20
-
 # Количество секций ракетки.
 LENGTH = 6
+TEXT_IDENT = 10
 
 # Настройка игрового окна:
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
-
+screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 # Заголовок окна игрового поля:
-pygame.display.set_caption('Теннис')
-
+pg.display.set_caption('Теннис')
 # Настройка времени:
-clock = pygame.time.Clock()
+clock = pg.time.Clock()
 
 
 class GameObject:
@@ -62,7 +64,7 @@ class GameObject:
 class Ball(GameObject):
     """Наследуемый класс Ball."""
 
-    def __init__(self, radius=15, speed=2):
+    def __init__(self, radius=15, speed=SPEED_BALL):
         """Инициализируем обект 'мячик'."""
         super().__init__()
         self.position = (randint(0, SCREEN_WIDTH), radius)
@@ -75,14 +77,14 @@ class Ball(GameObject):
 
     def draw(self):
         """Отрисовка обекта 'мячик'."""
-        pygame.draw.circle(screen,
-                           self.color,
-                           self.position,
-                           self.radius)
-        pygame.draw.circle(screen,
-                           BORDER_COLOR,
-                           self.position,
-                           self.radius + 2, 2)
+        pg.draw.circle(screen,
+                       self.color,
+                       self.position,
+                       self.radius)
+        pg.draw.circle(screen,
+                       BORDER_COLOR,
+                       self.position,
+                       self.radius + 2, 2)
 
     def move(self):
         """Меняем положение 'мячика' на игровом поле."""
@@ -122,6 +124,8 @@ class Racket(GameObject):
         self.body_color = RACKET_COLOR
         self.reset_racket()
         self.direction = None
+        self.ball_drop = False
+        self.speed_racket = SPEED_RACKET
 
     def move(self):
         """Метод обновляет позицию ракетки."""
@@ -129,7 +133,7 @@ class Racket(GameObject):
         if self.direction == LEFT and self.positions[0][0] > 0:
             for i in range(len(self.positions)):
                 self.positions[i] = (
-                    self.positions[i][0] - SPEED_RACKET,
+                    self.positions[i][0] - self.speed_racket,
                     self.positions[i][1]
                     )
         # Иначе если нажали кнопку вправо.
@@ -137,7 +141,7 @@ class Racket(GameObject):
               self.positions[0][0] < SCREEN_WIDTH - SIDE * LENGTH):
             for i in range(len(self.positions)):
                 self.positions[i] = (
-                    self.positions[i][0] + SPEED_RACKET,
+                    self.positions[i][0] + self.speed_racket,
                     self.positions[i][1]
                     )
 
@@ -151,18 +155,21 @@ class Racket(GameObject):
                 ball.x in racket_coords_x):
             ball.y = SCREEN_HEIGHT - SIDE - ball.radius
             ball.dy = -1
+            return True
         # Столкновение с нижней горизонтальной границей.
         elif (ball.y + ball.radius >= SCREEN_HEIGHT and
                 ball.x not in racket_coords_x):
             self.reset_racket()
             ball.position = (randint(0, SCREEN_WIDTH), ball.radius)
+            print('мяч упал')
+            self.ball_drop = True
 
     def draw(self):
         """Метод draw класса Snake."""
         for position in self.positions:
-            rect = (pygame.Rect(position, (SIDE, SIDE)))
-            pygame.draw.rect(screen, self.body_color, rect)
-            pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+            rect = (pg.Rect(position, (SIDE, SIDE)))
+            pg.draw.rect(screen, self.body_color, rect)
+            pg.draw.rect(screen, BORDER_COLOR, rect, 1)
 
     def reset_racket(self):
         """Метод установливает ракетку в начальное положение."""
@@ -171,72 +178,138 @@ class Racket(GameObject):
                           for x in range(0, LENGTH * SIDE, SIDE)]
 
 
-def handle_keys(object):
+def handle_keys(object, pause_game, start_game):
     """Обработка нажатий кнопок на клавиатуре пользователя."""
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            raise SystemExit
+    for event in pg.event.get():
+        if event.type == pg.QUIT:
+            pg.quit()
+            exit()
         # Добавляем возможность выхода по ESC
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                raise SystemExit
-        if event.type == pygame.KEYDOWN:
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
+                pg.quit()
+                exit()
             # обработка нажатия клавиши СТРЕЛКА_ВЛЕВО
-            if event.key == pygame.K_LEFT:
+            elif event.key == pg.K_LEFT:
                 object.direction = LEFT
             # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
-            if event.key == pygame.K_RIGHT:
+            elif event.key == pg.K_RIGHT:
                 object.direction = RIGHT
-        if event.type == pygame.KEYUP:
+            elif event.key == pg.K_RETURN:
+                pause_game = not pause_game
+                start_game = False
+        elif event.type == pg.KEYUP:
             # обработка отпускания клавиши СТРЕЛКА_ВЛЕВО
-            if event.key == pygame.K_LEFT:
+            if event.key == pg.K_LEFT:
                 object.direction = None
             # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
-            if event.key == pygame.K_RIGHT:
+            elif event.key == pg.K_RIGHT:
                 object.direction = None
+    return pause_game, start_game
+
+
+def start_pause_menu(printable_text='START', font_size=36, color=GREEN):
+    """Отрисовывает меню паузы."""
+    font = pg.font.Font(None, font_size)
+    text = font.render(printable_text, True, color)
+    text_rect = text.get_rect(center=SCREEN_CENTER)
+    text_bg = pg.Rect(
+        SCREEN_WIDTH // 2 - text.get_width() // 2 - 5,
+        SCREEN_HEIGHT // 2 - text.get_height() // 2 - 5,
+        text.get_width() + 10,
+        text.get_height() + 10
+    )
+    pg.draw.rect(screen, GREY, text_bg)
+    screen.blit(text, text_rect)
+
+
+def draw_menu(score, record_score, speed_ball):
+    """Отрисовывает счет."""
+    font = pg.font.Font(None, 24)
+    text_score = font.render(f'score: {score}', True, GREY)
+    screen.blit(text_score, (TEXT_IDENT, TEXT_IDENT))
+
+    text_best_score = font.render(
+        f'max: {max(record_score) if record_score else 0}', True, GREY
+    )
+    screen.blit(
+        text_best_score,
+        (TEXT_IDENT, TEXT_IDENT + text_score.get_height() + 5)
+    )
+
+    text_speed = font.render(f'speed: {speed_ball - SPEED_BALL}', True, GREY)
+    screen.blit(
+        text_speed,
+        (SCREEN_WIDTH - TEXT_IDENT - text_speed.get_width(), TEXT_IDENT)
+    )
 
 
 def main():
     """Основная функция main."""
-    # Динамический импорт класса Text.
-    from gameparts import Text
-    # Инициализация PyGame:
-    pygame.init()
+    # Инициализация pg:
+    pg.init()
     # Тут нужно создать экземпляры классов.
     ball = Ball()
     racket = Racket()
-    # Тут нужно создать экземпляры текста.
-    text = Text('Hello, world', pygame.font.SysFont('Arial', 30),
-                (255, 255, 255), 10, 10)
-    # Тут нужно создать экземпляры текста.
-    text_2 = Text('Hello, world', pygame.font.SysFont('Arial', 30),
-                  (255, 255, 255), 10, 10)
 
-    running = True
-    while running:
-        # Проверяем нажатие кнопок.
-        handle_keys(racket)
+    fps = FPS
+    score = 0
+    record_score = []
+    speed_ball = SPEED_BALL
+    pause_game = True
+    start_game = True
+
+    while True:
+        pause_game, start_game = handle_keys(racket, pause_game, start_game)
         # Делаем фон черным.
-        screen.fill((0, 0, 0))
-        # Обновляем позицию мячика.
-        ball.move()
-        # Обновляем позицию ракетки.
-        racket.move()
-        # Проверяем столкновения с границами.
-        ball.check_border()
-        # Проверяем столкновения мяча с ракеткой.
-        racket.kick(ball)
-        # Рисуем мяч.
-        ball.draw()
-        # Рисуем ракетку.
-        racket.draw()
-        # Рисуем текст.
-        text.draw(screen)
-        text_2.draw(screen)
-        pygame.display.update()
-        clock.tick(FPS)
+        screen.fill(BLACK)
+
+        if pause_game:
+            ball.draw()
+            racket.draw()
+            draw_menu(score, record_score, speed_ball)
+            if start_game:
+                start_pause_menu()
+            else:
+                start_pause_menu(
+                    printable_text='PAUSE',
+                    font_size=36,
+                    color=RED
+                )
+
+        else:
+            # Обновляем позицию мячика.
+            ball.move()
+            # Обновляем позицию ракетки.
+            racket.move()
+            # Проверяем столкновения с границами.
+            ball.check_border()
+            # Проверяем столкновения мяча с ракеткой.
+            if racket.kick(ball):
+                score += 1
+                if score % 5 == 0:
+                    speed_ball += 1
+                    ball.speed = speed_ball
+                    racket.speed_racket += 1
+                    fps -= 1
+            if racket.ball_drop:
+                score = 0
+                speed_ball = SPEED_BALL
+                ball.speed = speed_ball
+                racket.ball_drop = False
+                racket.speed_racket = SPEED_RACKET
+                fps = FPS
+            score
+            record_score.append(score)
+            # Рисуем мяч.
+            ball.draw()
+            # Рисуем ракетку.
+            racket.draw()
+            # Рисуем текст.
+            draw_menu(score, record_score, speed_ball)
+
+        pg.display.update()
+        clock.tick(fps)
 
 
 if __name__ == '__main__':
