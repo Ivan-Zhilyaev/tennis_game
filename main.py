@@ -19,6 +19,12 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREY = (50, 50, 50, 180)
 YELLOW = (255, 255, 0)
+ORANGE = (255, 165, 0)
+PURPLE = (128, 0, 128)
+CYAN = (0, 255, 255)
+
+# Цвета разрушаемых блоков
+BRICK_COLORS = [RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, CYAN]
 
 # Цвет фона - черный:
 BOARD_BACKGROUND_COLOR = (24, 24, 24)
@@ -43,7 +49,8 @@ TEXT_IDENT = 10
 # Настройка игрового окна:
 screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 # Заголовок окна игрового поля:
-pg.display.set_caption('Теннис')
+pg.display.set_caption(
+    'Игра Теннис: ENTER - старт, SPACE - пауза, R - сброс блоков')
 # Настройка времени:
 clock = pg.time.Clock()
 
@@ -59,6 +66,51 @@ class GameObject:
     def draw(self):
         """Метод для отрисовки объекта."""
         pass
+
+
+class Brick(GameObject):
+    """Класс разрушаемого блока."""
+
+    def __init__(self, x, y, width=60, height=20):
+        """Инициализация блока."""
+        super().__init__()
+        self.position = (x, y)
+        self.width = width
+        self.height = height
+        self.color = BRICK_COLORS[randint(0, len(BRICK_COLORS) - 1)]
+        self.rect = pg.Rect(x, y, width, height)
+        self.active = True
+
+    def draw(self):
+        """Отрисовка блока."""
+        if self.active:
+            pg.draw.rect(screen, self.color, self.rect)
+            pg.draw.rect(screen, WHITE, self.rect, 2)
+
+    def check_collision(self, ball):
+        """Проверка столкновения с мячом."""
+        if not self.active:
+            return False
+
+        # Проверяем столкновение с помощью Pygame Rect
+        ball_rect = pg.Rect(ball.x - ball.radius, ball.y - ball.radius,
+                            ball.radius * 2, ball.radius * 2)
+
+        if self.rect.colliderect(ball_rect):
+            # Определяем сторону столкновения
+            dx = (ball.x - self.rect.centerx) / (self.width / 2)
+            dy = (ball.y - self.rect.centery) / (self.height / 2)
+
+            if abs(dx) > abs(dy):
+                # Столкновение с левой/правой стороной
+                ball.dx *= -1
+            else:
+                # Столкновение с верхней/нижней стороной
+                ball.dy *= -1
+
+            self.active = False
+            return True
+        return False
 
 
 class Ball(GameObject):
@@ -90,7 +142,7 @@ class Ball(GameObject):
         """Меняем положение 'мячика' на игровом поле."""
         # Получение стартовой позиции 'мячика'
         self.x, self.y = self.position
-        # Изменение положения 'мячика' в зависимости от направления движения
+        # Изменение положение 'мячика' в зависимости от направления движения
         self.x += self.speed * self.dx
         self.y += self.speed * self.dy
 
@@ -177,26 +229,52 @@ class Racket(GameObject):
                           for x in range(0, LENGTH * SIDE, SIDE)]
 
 
+def create_bricks():
+    """Создает массив разрушаемых блоков."""
+    bricks = []
+    brick_width = 60
+    brick_height = 20
+    brick_margin = 5
+    rows = 4
+    cols = SCREEN_WIDTH // (brick_width + brick_margin)
+
+    start_x = (
+        SCREEN_WIDTH - cols * (brick_width + brick_margin) + brick_margin) // 2
+
+    for row in range(rows):
+        for col in range(cols):
+            x = start_x + col * (brick_width + brick_margin)
+            y = 40 + row * (brick_height + brick_margin)
+            bricks.append(Brick(x, y, brick_width, brick_height))
+
+    return bricks
+
+
 def handle_keys(object, pause_game, start_game):
     """Обработка нажатий кнопок на клавиатуре пользователя."""
     for event in pg.event.get():
         if event.type == pg.QUIT:
             pg.quit()
-            exit()
+            raise SystemExit
         # Добавляем возможность выхода по ESC
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 pg.quit()
-                exit()
+                raise SystemExit
             # обработка нажатия клавиши СТРЕЛКА_ВЛЕВО
             elif event.key == pg.K_LEFT:
                 object.direction = LEFT
             # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
             elif event.key == pg.K_RIGHT:
                 object.direction = RIGHT
-            elif event.key == pg.K_RETURN:
+            elif event.key == pg.K_RETURN and start_game:
                 pause_game = not pause_game
                 start_game = False
+            elif event.key == pg.K_SPACE:
+                pause_game = not pause_game
+            # Добавляем возможность сброса блоков по клавише R
+            elif event.key == pg.K_r:
+                return pause_game, start_game, True
         elif event.type == pg.KEYUP:
             # обработка отпускания клавиши СТРЕЛКА_ВЛЕВО
             if event.key == pg.K_LEFT:
@@ -204,7 +282,7 @@ def handle_keys(object, pause_game, start_game):
             # обработка нажатия клавиши СТРЕЛКА_ВПРАВО
             elif event.key == pg.K_RIGHT:
                 object.direction = None
-    return pause_game, start_game
+    return pause_game, start_game, False
 
 
 def start_pause_menu(printable_text='START', font_size=36, color=GREEN):
@@ -222,12 +300,15 @@ def start_pause_menu(printable_text='START', font_size=36, color=GREEN):
     screen.blit(text, text_rect)
 
 
-def draw_menu(score, record_score, speed_ball):
-    """Отрисовывает счет."""
+def draw_menu(score, record_score, speed_ball, bricks_left, total_bricks):
+    """Отрисовывает счет и информацию о блоках."""
     font = pg.font.Font(None, 24)
+
+    # Счет
     text_score = font.render(f'score: {score}', True, GREY)
     screen.blit(text_score, (TEXT_IDENT, TEXT_IDENT))
 
+    # Рекорд
     text_best_score = font.render(
         f'max: {max(record_score) if record_score else 0}', True, GREY
     )
@@ -236,10 +317,21 @@ def draw_menu(score, record_score, speed_ball):
         (TEXT_IDENT, TEXT_IDENT + text_score.get_height() + 5)
     )
 
-    text_speed = font.render(f'speed: {speed_ball - SPEED_BALL}', True, GREY)
+    # Скорость
+    text_speed = font.render(f'speed: {
+        speed_ball - SPEED_BALL + 1}', True, GREY)
     screen.blit(
         text_speed,
         (SCREEN_WIDTH - TEXT_IDENT - text_speed.get_width(), TEXT_IDENT)
+    )
+
+    # Количество оставшихся блоков
+    text_bricks = font.render(f'blocks: {
+        bricks_left}/{total_bricks}', True, GREY)
+    screen.blit(
+        text_bricks,
+        (SCREEN_WIDTH - TEXT_IDENT - text_bricks.get_width(),
+         TEXT_IDENT + text_speed.get_height() + 5)
     )
 
 
@@ -251,6 +343,10 @@ def main():
     ball = Ball()
     racket = Racket()
 
+    # Создаем разрушаемые блоки
+    bricks = create_bricks()
+    total_bricks = len(bricks)
+
     fps = FPS
     score = 0
     record_score = []
@@ -259,14 +355,29 @@ def main():
     start_game = True
 
     while True:
-        pause_game, start_game = handle_keys(racket, pause_game, start_game)
+        pause_game, start_game, reset_bricks = handle_keys(
+            racket, pause_game, start_game)
+
+        # Сброс блоков по нажатию R
+        if reset_bricks:
+            bricks = create_bricks()
+            total_bricks = len(bricks)
+
         # Делаем фон черным.
         screen.fill(BLACK)
 
         if pause_game:
+            # Рисуем блоки
+            for brick in bricks:
+                brick.draw()
             ball.draw()
             racket.draw()
-            draw_menu(score, record_score, speed_ball)
+
+            # Подсчитываем активные блоки
+            bricks_left = sum(1 for brick in bricks if brick.active)
+            draw_menu(
+                score, record_score, speed_ball, bricks_left, total_bricks)
+
             if start_game:
                 start_pause_menu()
             else:
@@ -283,6 +394,12 @@ def main():
             racket.move()
             # Проверяем столкновения с границами.
             ball.check_border()
+
+            # Проверяем столкновения с блоками
+            for brick in bricks:
+                if brick.check_collision(ball):
+                    score += 5  # За блок даем больше очков
+
             # Проверяем столкновения мяча с ракеткой.
             if racket.kick(ball):
                 score += 1
@@ -291,6 +408,7 @@ def main():
                     ball.speed = speed_ball
                     racket.speed_racket += 1
                     fps -= 1
+
             if racket.ball_drop:
                 score = 0
                 speed_ball = SPEED_BALL
@@ -298,14 +416,21 @@ def main():
                 racket.ball_drop = False
                 racket.speed_racket = SPEED_RACKET
                 fps = FPS
-            score
+
             record_score.append(score)
+
+            # Рисуем блоки
+            for brick in bricks:
+                brick.draw()
             # Рисуем мяч.
             ball.draw()
             # Рисуем ракетку.
             racket.draw()
-            # Рисуем текст.
-            draw_menu(score, record_score, speed_ball)
+
+            # Подсчитываем активные блоки
+            bricks_left = sum(1 for brick in bricks if brick.active)
+            draw_menu(
+                score, record_score, speed_ball, bricks_left, total_bricks)
 
         pg.display.update()
         clock.tick(fps)
