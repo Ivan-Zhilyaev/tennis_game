@@ -50,7 +50,7 @@ TEXT_IDENT = 10
 screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 # Заголовок окна игрового поля:
 pg.display.set_caption(
-    'Игра Теннис: ENTER - старт, SPACE - пауза, R - сброс блоков')
+    'Игра Теннис: ENTER - старт, SPACE - пауза, R - сброс блоков, ESC - выход')
 # Настройка времени:
 clock = pg.time.Clock()
 
@@ -270,7 +270,7 @@ def handle_keys(object, pause_game, start_game):
             elif event.key == pg.K_RETURN and start_game:
                 pause_game = not pause_game
                 start_game = False
-            elif event.key == pg.K_SPACE:
+            elif event.key == pg.K_SPACE and not start_game:
                 pause_game = not pause_game
             # Добавляем возможность сброса блоков по клавише R
             elif event.key == pg.K_r:
